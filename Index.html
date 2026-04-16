@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Aplikasi kasir sederhana</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    padding: 20px;
+}
+h1 { text-align: center; }
+.container {
+    max-width: 650px;
+    margin: auto;
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+select, input, button {
+    padding: 8px;
+    margin: 5px 0;
+    width: 100%;
+}
+table {
+    width: 100%;
+    margin-top: 10px;
+    border-collapse: collapse;
+}
+table, th, td { border: 1px solid #ccc; }
+th, td { padding: 8px; text-align: center; }
+.total { font-weight: bold; }
+
+button {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+button:hover { background-color: #218838; }
+
+.struk {
+    margin-top: 20px;
+    background: #eee;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+/* Print hanya struk */
+@media print {
+    body * { visibility: hidden; }
+    .struk, .struk * { visibility: visible; }
+    .struk {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        background: white;
+    }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+<h1>🛒 Kasir Sederhana</h1>
+
+<label>Pilih Barang:</label>
+<select id="barang"></select>
+
+<label>Jumlah:</label>
+<input type="number" id="jumlah" min="1" value="1">
+
+<button onclick="tambahBarang()">Tambah ke Keranjang</button>
+
+<table>
+<thead>
+<tr>
+<th>Barang</th>
+<th>Jumlah</th>
+<th>Subtotal</th>
+</tr>
+</thead>
+<tbody id="keranjang"></tbody>
+</table>
+
+<p class="total">Total: Rp <span id="total">0</span></p>
+
+<label>Uang Bayar:</label>
+<input type="number" id="bayar">
+
+<button onclick="hitungKembalian()">Bayar</button>
+<button onclick="cetakStruk()">🖨️ Cetak Struk</button>
+<button onclick="resetKasir()">🔄 Transaksi Baru</button>
+
+<hr>
+<h3>➕ Tambah Barang Baru</h3>
+
+<label>Nama Barang:</label>
+<input type="text" id="namaBaru">
+
+<label>Harga Barang:</label>
+<input type="number" id="hargaBaru">
+
+<button onclick="tambahBarangBaru()">Tambah ke Daftar</button>
+
+<div class="struk" id="struk"></div>
+</div>
+
+<script>
+let hargaBarang = {
+    roti: 5000,
+    air: 3000,
+    cokelat: 7000,
+    mie: 4000,
+    ramen: 10000
+};
+
+let keranjang = {};
+let total = 0;
+
+// Load data saat halaman dibuka
+window.onload = function () {
+    const dataKeranjang = localStorage.getItem("keranjang");
+    const dataBarang = localStorage.getItem("hargaBarang");
+
+    if (dataKeranjang) {
+        keranjang = JSON.parse(dataKeranjang);
+    }
+
+    if (dataBarang) {
+        hargaBarang = JSON.parse(dataBarang);
+    }
+
+    updateDropdown();
+    updateKeranjang();
+};
+
+function updateDropdown() {
+    const select = document.getElementById("barang");
+    select.innerHTML = "";
+
+    for (let item in hargaBarang) {
+        const option = document.createElement("option");
+        option.value = item;
+        option.text = `${item} - ${formatRupiah(hargaBarang[item])}`;
+        select.appendChild(option);
+    }
+}
+
+function formatRupiah(angka) {
+    return angka.toLocaleString("id-ID");
+}
+
+function tambahBarang() {
+    const nama = document.getElementById("barang").value;
+    const jumlah = parseInt(document.getElementById("jumlah").value);
+
+    if (!keranjang[nama]) keranjang[nama] = 0;
+    keranjang[nama] += jumlah;
+
+    localStorage.setItem("keranjang", JSON.stringify(keranjang));
+
+    updateKeranjang();
+}
+
+function updateKeranjang() {
+    const tbody = document.getElementById("keranjang");
+    tbody.innerHTML = "";
+    total = 0;
+
+    for (let item in keranjang) {
+        let subtotal = hargaBarang[item] * keranjang[item];
+        total += subtotal;
+
+        tbody.innerHTML += `
+        <tr>
+            <td>${item}</td>
+            <td>${keranjang[item]}</td>
+            <td>Rp ${formatRupiah(subtotal)}</td>
+        </tr>`;
+    }
+
+    document.getElementById("total").innerText = formatRupiah(total);
+}
+
+function hitungKembalian() {
+    const bayar = parseInt(document.getElementById("bayar").value);
+    const strukDiv = document.getElementById("struk");
+
+    if (bayar >= total) {
+        const kembalian = bayar - total;
+        const tanggal = new Date().toLocaleString();
+
+        strukDiv.innerHTML = `
+        <h3>===== STRUK BELANJA =====</h3>
+        <p>${tanggal}</p>
+        <hr>
+        ${Object.keys(keranjang).map(item =>
+            `<p>${item} x${keranjang[item]} = Rp ${formatRupiah(hargaBarang[item] * keranjang[item])}</p>`
+        ).join("")}
+        <hr>
+        <p>Total: Rp ${formatRupiah(total)}</p>
+        <p>Bayar: Rp ${formatRupiah(bayar)}</p>
+        <p>Kembalian: Rp ${formatRupiah(kembalian)}</p>
+        <hr>
+        <p>Terima kasih telah berbelanja 😊</p>
+        `;
+    } else {
+        alert("Uang tidak cukup!");
+    }
+}
+
+function cetakStruk() {
+    if (total === 0) {
+        alert("Belum ada transaksi!");
+        return;
+    }
+    window.print();
+}
+
+function resetKasir() {
+    keranjang = {};
+    total = 0;
+
+    localStorage.removeItem("keranjang");
+
+    document.getElementById("keranjang").innerHTML = "";
+    document.getElementById("total").innerText = "0";
+    document.getElementById("bayar").value = "";
+    document.getElementById("struk").innerHTML = "";
+}
+
+function tambahBarangBaru() {
+    const nama = document.getElementById("namaBaru").value.toLowerCase();
+    const harga = parseInt(document.getElementById("hargaBaru").value);
+
+    if (!nama || !harga || harga <= 0) {
+        alert("Isi nama dan harga dengan benar!");
+        return;
+    }
+
+    if (hargaBarang[nama]) {
+        alert("Barang sudah ada!");
+        return;
+    }
+
+    hargaBarang[nama] = harga;
+
+    localStorage.setItem("hargaBarang", JSON.stringify(hargaBarang));
+
+    updateDropdown();
+
+    alert("Barang berhasil ditambahkan!");
+
+    document.getElementById("namaBaru").value = "";
+    document.getElementById("hargaBaru").value = "";
+}
+</script>
+
+</body>
+</html>
